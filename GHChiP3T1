@@ -1,0 +1,754 @@
+import React, { useState, useEffect } from 'react';
+import { BookOpen, Star, CheckCircle, XCircle, ArrowRight, Award, RefreshCw, HelpCircle, Upload, Edit3, Globe, ExternalLink, LayoutGrid, RotateCcw, Home, LogOut } from 'lucide-react';
+
+// --- DATA: DEFAULT USER LIST ---
+const DEFAULT_USER_LIST = [
+  { word: "哄堂大笑", meaning: "A burst of laughter" },
+  { word: "幾乎", meaning: "Almost" },
+  { word: "憤怒", meaning: "Angry" },
+  { word: "提問", meaning: "Question" },
+  { word: "反應", meaning: "Reaction" },
+  { word: "重複", meaning: "Repeated" },
+  { word: "羞愧", meaning: "Shame" },
+  { word: "盯", meaning: "Stare" },
+  { word: "口述", meaning: "Oral narration" },
+  { word: "匆忙", meaning: "Hurriedly" },
+  { word: "一個勁兒", meaning: "Without stopping" },
+  { word: "狼狽", meaning: "Embarrassed" },
+  { word: "四面八方", meaning: "From all directions" },
+  { word: "連忙", meaning: "Quickly" },
+  { word: "稱讚", meaning: "Praise" },
+  { word: "表揚", meaning: "Commendation" },
+  { word: "滑溜溜", meaning: "Slippery" },
+  { word: "惦記", meaning: "Thinking about" },
+  { word: "邀請", meaning: "Inviting" },
+  { word: "祝福", meaning: "Blessing" },
+  { word: "佔用", meaning: "Occupy" },
+  { word: "安慰", meaning: "Comfort" },
+  { word: "忙碌", meaning: "Busy" },
+  { word: "獎勵", meaning: "Reward" },
+  { word: "酣睡", meaning: "Sound sleep" },
+  { word: "責任", meaning: "Responsibility" },
+  { word: "逐漸", meaning: "Gradually" },
+  { word: "迫不及待", meaning: "Impatiently" },
+  { word: "環境", meaning: "Environment" },
+  { word: "流利", meaning: "Fluently" },
+  { word: "改善", meaning: "Improve" },
+  { word: "回味", meaning: "Savoring" },
+  { word: "適應", meaning: "Adapting" },
+  { word: "準確", meaning: "Accurately" },
+  { word: "曼妙", meaning: "Graceful" },
+  { word: "甘甜", meaning: "Sweet" },
+  { word: "悄悄", meaning: "Quietly" },
+  { word: "香氣四溢", meaning: "Fragrant" },
+  { word: "釀", meaning: "Brew" },
+  { word: "吱吱喳喳", meaning: "Squeaking" },
+  { word: "搖曳", meaning: "Swaying" },
+  { word: "臉龐", meaning: "Face" },
+  { word: "瑟瑟發抖", meaning: "Shivering" },
+  { word: "埋怨", meaning: "Complaining" },
+  { word: "嗓子", meaning: "Voice" },
+  { word: "悶熱", meaning: "Hot" },
+  { word: "清涼", meaning: "Cool" },
+  { word: "期待", meaning: "Expecting" },
+  { word: "同伴", meaning: "Companion" },
+  { word: "讚美", meaning: "Praise" }
+];
+
+// --- GAME ASSETS & DATABASES ---
+
+// 1. DICTIONARY (Fallback / Expansion)
+const VOCAB_DICTIONARY = {
+  "堅毅": "Perseverance", "尊重": "Respect", "責任感": "Responsibility", 
+  "學校": "School", "老師": "Teacher", "學生": "Student", "朋友": "Friend"
+};
+
+// 2. SIMILAR CHARACTERS MAP (For Game 2: Differentiation)
+const SIMILAR_CHAR_MAP = {
+  // From user list
+  "幾": ["機", "磯"], // 幾乎
+  "憤": ["噴", "墳"], // 憤怒
+  "盯": ["釘", "打"], // 盯
+  "狼": ["狠", "良"], // 狼狽
+  "忙": ["忘", "亡"], // 忙碌
+  "嗓": ["桑", "噪"], // 嗓子
+  "悶": ["問", "間"], // 悶熱
+  "涼": ["京", "惊"], // 清涼
+  "讚": ["讀", "讓"], // 讚美/稱讚
+  "邀": ["激", "繳"], // 邀請
+  "連": ["運", "蓮"], // 連忙
+  "陪": ["部", "倍"], // 同伴 (伴/陪 confusion)
+  "伴": ["半", "胖"],
+  "味": ["妹", "昧"], // 回味
+  "待": ["持", "詩"], // 期待
+  
+  // Existing
+  "辨": ["辯", "辦", "瓣"], "辯": ["辨", "辦", "瓣"],
+  "豪": ["毫", "蒙", "象"], "毫": ["豪", "毛", "手"],
+  "清": ["青", "請", "情", "晴", "睛"], "青": ["清", "請", "情"],
+  "晴": ["睛", "清", "青"], "睛": ["晴", "清", "青"],
+  "買": ["賣", "實", "頭"], "賣": ["買", "讀", "實"],
+  "入": ["人", "八"], "人": ["入", "八", "大"],
+  "午": ["牛", "千", "干"], "牛": ["午", "生", "手"],
+  "已": ["己", "巳"], "己": ["已", "巳"]
+};
+
+// 3. RELATIONS DB (For Game 3: Synonyms/Antonyms)
+const RELATIONS_DB = {
+  // From user list
+  "憤怒": { type: "synonym", target: "生氣", mode: "近義詞 (Synonym)", distractors: ["高興", "快樂", "平靜"] },
+  "匆忙": { type: "antonym", target: "悠閒", mode: "反義詞 (Antonym)", distractors: ["急忙", "快速", "緊張"] },
+  "稱讚": { type: "synonym", target: "讚賞", mode: "近義詞 (Synonym)", distractors: ["批評", "責備", "討厭"] },
+  "表揚": { type: "synonym", target: "誇獎", mode: "近義詞 (Synonym)", distractors: ["批評", "責罵", "懲罰"] },
+  "忙碌": { type: "antonym", target: "空閒", mode: "反義詞 (Antonym)", distractors: ["繁忙", "急促", "充實"] },
+  "逐漸": { type: "synonym", target: "漸漸", mode: "近義詞 (Synonym)", distractors: ["突然", "立刻", "馬上"] },
+  "改善": { type: "synonym", target: "改進", mode: "近義詞 (Synonym)", distractors: ["惡化", "退步", "保持"] },
+  "期待": { type: "synonym", target: "期望", mode: "近義詞 (Synonym)", distractors: ["失望", "絕望", "放棄"] },
+  "讚美": { type: "synonym", target: "讚揚", mode: "近義詞 (Synonym)", distractors: ["詆毀", "辱罵", "批評"] },
+  "羞愧": { type: "synonym", target: "慚愧", mode: "近義詞 (Synonym)", distractors: ["驕傲", "自豪", "自信"] },
+  "安慰": { type: "synonym", target: "撫慰", mode: "近義詞 (Synonym)", distractors: ["打擊", "傷害", "刺激"] },
+
+  // Existing
+  "快樂": { type: "synonym", target: "高興", mode: "近義詞 (Synonym)", distractors: ["悲傷", "憤怒", "擔心"] },
+  "悲傷": { type: "antonym", target: "快樂", mode: "反義詞 (Antonym)", distractors: ["難過", "痛苦", "憂愁"] },
+  "成功": { type: "antonym", target: "失敗", mode: "反義詞 (Antonym)", distractors: ["勝利", "完成", "達到"] },
+  "失敗": { type: "antonym", target: "成功", mode: "反義詞 (Antonym)", distractors: ["輸掉", "錯誤", "挫折"] },
+  "簡單": { type: "antonym", target: "困難", mode: "反義詞 (Antonym)", distractors: ["容易", "清晰", "單純"] },
+  "困難": { type: "synonym", target: "艱難", mode: "近義詞 (Synonym)", distractors: ["容易", "輕鬆", "簡單"] }
+};
+
+// 4. SENTENCE DB (For Game 4: Fill in the Blanks)
+const SENTENCE_DB = {
+  // From user list
+  "哄堂大笑": "聽到這個笑話，全班同學都____。",
+  "幾乎": "這裡的風景美得____讓人忘記呼吸。",
+  "憤怒": "他對這個無理的要求感到非常____。",
+  "提問": "老師鼓勵我們多____，不要不懂裝懂。",
+  "羞愧": "因為說謊，他感到十分____。",
+  "盯": "警察死死地____著那個可疑的小偷。",
+  "匆忙": "他____地吃完早餐就去上學了。",
+  "狼狽": "突如其來的大雨讓他淋得十分____。",
+  "稱讚": "老師____他字寫得很漂亮。",
+  "邀請": "我____朋友來參加我的生日派對。",
+  "安慰": "朋友傷心時，我們要去____他。",
+  "忙碌": "爸爸每天工作都很____，很少在家。",
+  "責任": "保護環境是每個人的____。",
+  "流利": "他能說一口____的普通話。",
+  "改善": "我們要努力____學習方法，提高效率。",
+  "回味": "這道菜的味道讓人____無窮。",
+  "適應": "他很快就____了新學校的生活。",
+  "準確": "請你____地回答我的問題。",
+  "期待": "我十分____暑假的來臨。",
+  "滑溜溜": "這條魚____的，很難抓。",
+  "環境": "我們要愛護____，不要亂丟垃圾。",
+  "獎勵": "如果你考得好，媽媽會____你一份禮物。",
+
+  // Existing
+  "堅毅": "面對困難時，我們要有____的精神，不可輕言放棄。",
+  "尊重": "我們要____別人的意見，即使不同意也不應惡言相向。",
+  "學校": "____是我們學習知識和認識朋友的地方。",
+  "快樂": "幫助別人是一件____的事。"
+};
+
+// --- HELPER FUNCTIONS ---
+
+const generateGame2Questions = (vocabList) => {
+  const questions = [];
+  vocabList.forEach((item, idx) => {
+    // 1. Try to find a similar char
+    const charToTest = item.word.split('').find(c => SIMILAR_CHAR_MAP[c]);
+    
+    if (charToTest) {
+      const similars = SIMILAR_CHAR_MAP[charToTest];
+      const distractors = similars.map(sim => item.word.replace(charToTest, sim));
+      const uniqueDistractors = [...new Set(distractors)];
+      const options = [item.word, ...uniqueDistractors].slice(0, 4).sort(() => 0.5 - Math.random());
+      
+      questions.push({
+        id: `g2-${idx}`, stage: 'differentiation', type: 'diff',
+        mainChar: item.word, question: `請選擇正確的字詞 (Select correct word):`,
+        context: `Meaning: ${item.meaning}`, options: options, correctAnswer: item.word,
+        explanationZh: `「${charToTest}」容易與「${similars.join('、')}」混淆。`,
+        explanationEn: `Be careful with the shape of '${charToTest}'. It looks similar to ${similars.join('/')}.`
+      });
+    } else {
+      // 2. FALLBACK: Word Recognition (Select correct Chinese word for English Meaning)
+      const otherWords = vocabList.filter(v => v.word !== item.word).map(v => v.word);
+      const distractors = otherWords.sort(() => 0.5 - Math.random()).slice(0, 3);
+      const options = [item.word, ...distractors].sort(() => 0.5 - Math.random());
+
+      questions.push({
+        id: `g2-${idx}`, stage: 'differentiation', type: 'recognition',
+        mainChar: item.word, question: `請選擇正確的中文詞彙 (Select the correct word):`,
+        context: `Meaning: ${item.meaning}`, options: options, correctAnswer: item.word,
+        explanationZh: `「${item.word}」的意思是 ${item.meaning}。`,
+        explanationEn: `The Chinese word for "${item.meaning}" is "${item.word}".`
+      });
+    }
+  });
+  return questions;
+};
+
+const generateGame3Questions = (vocabList) => {
+  const questions = [];
+  vocabList.forEach((item, idx) => {
+    // 1. Try to find relations
+    const relation = RELATIONS_DB[item.word];
+    if (relation) {
+      const options = [relation.target, ...relation.distractors].sort(() => 0.5 - Math.random());
+      questions.push({
+        id: `g3-${idx}`, stage: 'relations', type: 'relation',
+        mainChar: item.word, target: item.word, mode: relation.mode,
+        question: `找出「${item.word}」的${relation.mode.split(' ')[0]}：`,
+        options: options, correctAnswer: relation.target,
+        explanationZh: `「${item.word}」與「${relation.target}」是${relation.mode.split(' ')[0]}關係。`,
+        explanationEn: `'${item.word}' and '${relation.target}' are ${relation.type}s.`
+      });
+    } else {
+      // 2. FALLBACK: Reverse Definition Match
+      const otherWords = vocabList.filter(v => v.word !== item.word).map(v => v.word);
+      const distractors = otherWords.sort(() => 0.5 - Math.random()).slice(0, 3);
+      const options = [item.word, ...distractors].sort(() => 0.5 - Math.random());
+
+      questions.push({
+        id: `g3-${idx}`, stage: 'relations', type: 'reverse-def',
+        mainChar: item.meaning, 
+        target: item.word,
+        mode: "詞義配對 (Match Word)",
+        question: `哪個詞彙的意思是 "${item.meaning}"？`,
+        options: options, correctAnswer: item.word,
+        explanationZh: `「${item.word}」對應的英文解釋是 ${item.meaning}。`,
+        explanationEn: `"${item.word}" matches the definition "${item.meaning}".`
+      });
+    }
+  });
+  return questions;
+};
+
+const generateGame4Questions = (vocabList) => {
+  const questions = [];
+  vocabList.forEach((item, idx) => {
+    const sentence = SENTENCE_DB[item.word];
+    if (sentence) {
+      for (let i = 0; i < 3; i++) {
+        const otherWords = vocabList.filter(v => v.word !== item.word).map(v => v.word);
+        const dictWords = Object.keys(SENTENCE_DB).filter(k => k !== item.word);
+        const pool = [...otherWords, ...dictWords];
+        const distractors = pool.sort(() => 0.5 - Math.random()).slice(0, 3);
+        const options = [item.word, ...distractors].sort(() => 0.5 - Math.random());
+        
+        questions.push({
+          id: `g4-${idx}-${i}`, 
+          stage: 'fillInBlanks', 
+          type: 'fill',
+          mainChar: item.word, 
+          sentence: sentence,
+          question: `請選擇最適合的詞語填空 (${i+1}/3)：`, 
+          options: options, 
+          correctAnswer: item.word,
+          explanationZh: `這句話的意思是：${sentence.replace('____', item.word)}`,
+          explanationEn: "Select the word that best fits the context of the sentence."
+        });
+      }
+    }
+  });
+  return questions;
+};
+
+// --- COMPONENTS ---
+
+const Card = ({ children, className = "" }) => (
+  <div className={`bg-white rounded-xl shadow-lg p-6 ${className}`}>
+    {children}
+  </div>
+);
+
+const Button = ({ onClick, disabled, variant = "primary", children, className = "" }) => {
+  const baseStyle = "px-4 py-3 rounded-lg font-bold transition-all transform active:scale-95 duration-200 flex items-center justify-center gap-2 text-sm md:text-base";
+  const variants = {
+    primary: "bg-indigo-600 text-white hover:bg-indigo-700 shadow-md",
+    secondary: "bg-teal-500 text-white hover:bg-teal-600 shadow-md",
+    outline: "border-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50",
+    correct: "bg-green-500 text-white shadow-md ring-4 ring-green-200",
+    wrong: "bg-red-500 text-white shadow-md ring-4 ring-red-200",
+    disabled: "bg-gray-300 text-gray-500 cursor-not-allowed opacity-60",
+    icon: "p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg"
+  };
+  return <button onClick={onClick} disabled={disabled} className={`${baseStyle} ${disabled ? variants.disabled : variants[variant]} ${className}`}>{children}</button>;
+};
+
+const FeedbackModal = ({ isCorrect, explanationZh, explanationEn, onNext }) => (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-in fade-in duration-300">
+    <div className="bg-white rounded-2xl p-6 md:p-8 max-w-lg w-full shadow-2xl transform transition-all scale-100 max-h-[90vh] overflow-y-auto">
+      <div className="flex flex-col items-center text-center">
+        {isCorrect ? <CheckCircle className="w-16 h-16 text-green-500 mb-4" /> : <XCircle className="w-16 h-16 text-red-500 mb-4" />}
+        <h3 className={`text-2xl font-bold mb-2 ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>{isCorrect ? "答對了！(Correct!)" : "再接再厲！(Try Again)"}</h3>
+        <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 my-4 text-left w-full space-y-4">
+          <div>
+            <p className="text-indigo-900 font-bold mb-1 flex items-center gap-2"><span className="text-lg">🇨🇳</span> 解釋 (Chinese):</p>
+            <p className="text-gray-800 leading-relaxed text-base pl-8">{explanationZh}</p>
+          </div>
+          <div className="border-t border-indigo-200 pt-3">
+            <p className="text-indigo-900 font-bold mb-1 flex items-center gap-2"><span className="text-lg">🇺🇸</span> Explanation (English):</p>
+            <p className="text-gray-800 leading-relaxed text-base pl-8">{explanationEn}</p>
+          </div>
+        </div>
+        <Button onClick={onNext} variant={isCorrect ? "primary" : "secondary"} className="w-full">{isCorrect ? "下一題 (Next)" : "明白 (Got it)"}</Button>
+      </div>
+    </div>
+  </div>
+);
+
+const StageTransition = ({ stage, onComplete }) => {
+  useEffect(() => {
+    const timer = setTimeout(onComplete, 2000);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  return (
+    <div className="fixed inset-0 bg-indigo-600 flex flex-col items-center justify-center z-50 animate-in fade-in duration-500 text-white">
+      <div className="bg-white/20 p-6 rounded-full mb-6 backdrop-blur-sm animate-bounce">
+        {stage.icon}
+      </div>
+      <h2 className="text-4xl font-bold mb-2">下一關 (Next Level)</h2>
+      <h3 className="text-2xl font-light">{stage.title}</h3>
+      <p className="mt-4 opacity-80">{stage.desc}</p>
+    </div>
+  );
+};
+
+export default function App() {
+  const [gameState, setGameState] = useState('welcome');
+  const [importText, setImportText] = useState("");
+  const [importedVocabList, setImportedVocabList] = useState([]);
+  
+  // Game Selection State
+  const [selectedGameModes, setSelectedGameModes] = useState({
+    translation: true,
+    differentiation: true,
+    relations: true,
+    fillInBlanks: true
+  });
+  
+  // Game Session State
+  const [currentStageQuestions, setCurrentStageQuestions] = useState([]);
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  const [score, setScore] = useState(0);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [lastCorrect, setLastCorrect] = useState(false);
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [showTransition, setShowTransition] = useState(false);
+  const [wrongAnswers, setWrongAnswers] = useState([]); // Track wrong answers
+
+  const STAGES_INFO = {
+    translation: { title: '第一關：中英配對', icon: <Globe className="w-12 h-12"/>, desc: 'Translation Match' },
+    differentiation: { title: '第二關：字形辨析', icon: <BookOpen className="w-12 h-12"/>, desc: 'Similar Characters' },
+    relations: { title: '第三關：近義與反義', icon: <RefreshCw className="w-12 h-12"/>, desc: 'Synonyms & Antonyms' },
+    fillInBlanks: { title: '第四關：語境填充', icon: <HelpCircle className="w-12 h-12"/>, desc: 'Fill in the Blanks' }
+  };
+
+  useEffect(() => {
+    const savedList = localStorage.getItem('chineseGame_vocabList');
+    if (savedList) {
+      try { 
+        setImportedVocabList(JSON.parse(savedList)); 
+      } catch (e) { console.error(e); }
+    } else {
+      // Init with default specific list if local storage empty
+      const initList = DEFAULT_USER_LIST.map(item => ({ ...item, source: "manual", isSelected: true }));
+      setImportedVocabList(initList);
+      saveToLocalStorage(initList);
+    }
+  }, []);
+
+  const saveToLocalStorage = (list) => localStorage.setItem('chineseGame_vocabList', JSON.stringify(list));
+
+  const resetToDefault = () => {
+    if(confirm("Reset to the default vocabulary list? This will clear your changes.")) {
+       const initList = DEFAULT_USER_LIST.map(item => ({ ...item, source: "manual", isSelected: true }));
+       setImportedVocabList(initList);
+       saveToLocalStorage(initList);
+       setGameState('confirm');
+    }
+  }
+
+  const handleStartImport = () => {
+    const currentText = importedVocabList.map(item => {
+      if (item.source === 'manual' && item.meaning) return `${item.word}, ${item.meaning}`;
+      return item.word;
+    }).join('\n');
+    setImportText(currentText);
+    setGameState('import');
+  };
+
+  const processImport = () => {
+    const lines = importText.split('\n');
+    const processed = [];
+    lines.forEach(line => {
+       const trimmed = line.trim();
+       if (!trimmed) return;
+       const splitMatch = trimmed.match(/^([^,，:：\t-]+)[,，:：\t-](.+)$/);
+       let word = "", meaning = "", source = "unknown";
+       if (splitMatch) {
+         word = splitMatch[1].trim(); meaning = splitMatch[2].trim(); source = "manual";
+       } else {
+         word = trimmed;
+         if (VOCAB_DICTIONARY[word]) { meaning = VOCAB_DICTIONARY[word]; source = "google"; }
+       }
+       if (!processed.find(p => p.word === word)) {
+          const existing = importedVocabList.find(i => i.word === word);
+          processed.push({ word, meaning, source, isSelected: existing ? existing.isSelected : true });
+       }
+    });
+    setImportedVocabList(processed);
+    saveToLocalStorage(processed);
+    setGameState('confirm');
+  };
+
+  const updateImportedMeaning = (index, newMeaning) => {
+    const newList = [...importedVocabList];
+    newList[index].meaning = newMeaning; newList[index].source = 'manual';
+    setImportedVocabList(newList); saveToLocalStorage(newList);
+  };
+
+  const toggleImportSelection = (index) => {
+    const newList = [...importedVocabList];
+    newList[index].isSelected = !newList[index].isSelected;
+    setImportedVocabList(newList); saveToLocalStorage(newList);
+  };
+
+  const toggleAllSelection = () => {
+    const allSelected = importedVocabList.every(i => i.isSelected);
+    const newList = importedVocabList.map(i => ({ ...i, isSelected: !allSelected }));
+    setImportedVocabList(newList); saveToLocalStorage(newList);
+  };
+
+  const toggleGameMode = (mode) => {
+    setSelectedGameModes(prev => ({ ...prev, [mode]: !prev[mode] }));
+  };
+
+  const confirmImportedList = () => {
+    const activeList = importedVocabList.filter(i => i.isSelected);
+    if (activeList.length === 0) { alert("Please select at least one word."); return; }
+    
+    if (!Object.values(selectedGameModes).some(v => v)) {
+      alert("Please select at least one game mode to play.");
+      return;
+    }
+    
+    let q1 = [], q2 = [], q3 = [], q4 = [];
+    
+    // Game 1: Translation
+    if (selectedGameModes.translation) {
+      activeList.forEach((item, index) => {
+         const otherMeanings = activeList.filter(v => v.meaning !== item.meaning).map(v => v.meaning);
+         const dictMeanings = Object.values(VOCAB_DICTIONARY).filter(m => m !== item.meaning);
+         const pool = [...otherMeanings, ...dictMeanings];
+         const distractors = pool.sort(() => 0.5 - Math.random()).slice(0, 3);
+         while(distractors.length < 3) distractors.push("Unknown");
+         
+         q1.push({
+          id: `g1-${index}`, stage: 'translation', type: 'translation',
+          mainChar: item.word, question: `請選擇「${item.word}」的英文意思 (Select English meaning):`,
+          options: [item.meaning, ...distractors].sort(() => 0.5 - Math.random()),
+          correctAnswer: item.meaning, explanationZh: `「${item.word}」的意思是 ${item.meaning}。`,
+          explanationEn: `The English translation for "${item.word}" is "${item.meaning}".`
+         });
+      });
+    }
+
+    if (selectedGameModes.differentiation) {
+      q2 = generateGame2Questions(activeList);
+    }
+    if (selectedGameModes.relations) {
+      q3 = generateGame3Questions(activeList);
+    }
+    if (selectedGameModes.fillInBlanks) {
+      q4 = generateGame4Questions(activeList);
+    }
+    
+    // Shuffle each stage independently
+    q1.sort(() => 0.5 - Math.random());
+    q2.sort(() => 0.5 - Math.random());
+    q3.sort(() => 0.5 - Math.random());
+    q4.sort(() => 0.5 - Math.random());
+
+    const allQuestions = [...q1, ...q2, ...q3, ...q4];
+    
+    if (allQuestions.length === 0) {
+      alert("No questions could be generated. Try selecting more words or different game modes.");
+      return;
+    }
+
+    setCurrentStageQuestions(allQuestions);
+    setScore(0);
+    setCurrentQuestionIdx(0);
+    setWrongAnswers([]); 
+    setGameState('playing');
+  };
+
+  const handleAnswer = (answer) => {
+    const currentQ = currentStageQuestions[currentQuestionIdx];
+    setSelectedOption(answer);
+    const isCorrect = answer === currentQ.correctAnswer;
+    setLastCorrect(isCorrect);
+    
+    if (isCorrect) {
+      setScore(s => s + 10);
+    } else {
+      // Record wrong answer
+      setWrongAnswers(prev => [...prev, {
+        question: currentQ.mainChar || currentQ.question, 
+        type: STAGES_INFO[currentQ.stage].title,
+        correct: currentQ.correctAnswer,
+        userChoice: answer
+      }]);
+    }
+    
+    setTimeout(() => setShowFeedback(true), 400);
+  };
+
+  const handleNext = () => {
+    setShowFeedback(false);
+    setSelectedOption(null);
+    
+    if (currentQuestionIdx < currentStageQuestions.length - 1) {
+      const currentStage = currentStageQuestions[currentQuestionIdx].stage;
+      const nextStage = currentStageQuestions[currentQuestionIdx + 1].stage;
+      if (currentStage !== nextStage) setShowTransition(true);
+      setCurrentQuestionIdx(prev => prev + 1);
+    } else {
+      setGameState('summary');
+    }
+  };
+
+  // --- RENDER MODES ---
+  if (gameState === 'welcome') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100 flex items-center justify-center p-4">
+        <Card className="max-w-2xl w-full text-center py-12">
+          <div className="bg-indigo-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <BookOpen className="w-10 h-10 text-indigo-600" />
+          </div>
+          <h1 className="text-4xl font-extrabold text-gray-800 mb-4 tracking-tight">中文詞彙大挑戰</h1>
+          <p className="text-xl text-gray-600 mb-8">Chinese Vocabulary Master</p>
+          <div className="flex flex-col gap-3 max-w-xs mx-auto">
+             <Button onClick={() => setGameState('confirm')} variant="primary" className="w-full text-lg shadow-xl">
+               開始 (Start) <ArrowRight className="w-5 h-5" />
+             </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (gameState === 'import') {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 font-sans flex items-center justify-center">
+        <Card className="max-w-2xl w-full">
+           <header className="mb-6">
+              <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Upload className="w-6 h-6 text-indigo-600"/> 編輯詞彙 (Edit Vocabulary)</h1>
+              <div className="mt-3 bg-blue-50 p-3 rounded-lg text-sm text-blue-800 border border-blue-100">
+                <strong>Format:</strong> <code>Word, Meaning</code> (One per line)
+              </div>
+           </header>
+           <textarea className="w-full h-64 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono mb-6"
+             placeholder={`學校, School\n...`} value={importText} onChange={(e) => setImportText(e.target.value)} />
+           <div className="flex gap-4">
+             <Button variant="outline" onClick={() => setGameState('confirm')} className="flex-1">Back</Button>
+             <Button onClick={processImport} disabled={!importText.trim()} className="flex-1">Process & Save <ArrowRight className="w-4 h-4" /></Button>
+           </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (gameState === 'confirm') {
+    const selectedCount = importedVocabList.filter(i => i.isSelected).length;
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 font-sans flex items-center justify-center">
+        <Card className="max-w-5xl w-full h-[90vh] flex flex-col">
+           <header className="mb-2 flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-4">
+              <div><h1 className="text-2xl font-bold text-gray-800">遊戲設定 (Game Setup)</h1><p className="text-sm text-gray-500">Confirm vocabulary and choose games.</p></div>
+              <div className="flex items-center gap-2">
+                 <Button variant="outline" onClick={resetToDefault} className="text-xs h-8 px-2"><RotateCcw className="w-3 h-3 mr-1"/> Reset Default</Button>
+                 <span className="text-xl font-bold text-indigo-600">{selectedCount}</span>
+                 <span className="text-sm text-gray-500">Words</span>
+              </div>
+           </header>
+           
+           <div className="grid md:grid-cols-3 gap-6 flex-1 min-h-0">
+             {/* LEFT: Vocab List */}
+             <div className="md:col-span-2 flex flex-col min-h-0 border rounded-lg bg-gray-50 shadow-inner">
+               <div className="p-2 bg-gray-100 border-b flex justify-between items-center">
+                 <span className="font-bold text-gray-600 text-sm pl-2">Vocabulary List</span>
+                 <div className="flex gap-2">
+                   <Button variant="outline" onClick={handleStartImport} className="text-xs h-7 px-2 bg-white"><Edit3 className="w-3 h-3 mr-1"/>Edit</Button>
+                   <Button variant="outline" onClick={toggleAllSelection} className="text-xs h-7 px-2 bg-white">Toggle All</Button>
+                 </div>
+               </div>
+               <div className="flex-1 overflow-y-auto p-0">
+                 <table className="w-full text-left border-collapse text-sm">
+                    <thead className="bg-white sticky top-0 shadow-sm z-10">
+                      <tr>
+                        <th className="p-2 w-10 text-center"><input type="checkbox" checked={importedVocabList.every(i => i.isSelected)} onChange={toggleAllSelection} className="w-4 h-4"/></th>
+                        <th className="p-2">Word</th>
+                        <th className="p-2">Meaning</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white">
+                      {importedVocabList.map((item, idx) => (
+                        <tr key={idx} className={`border-b ${item.isSelected ? 'bg-white' : 'bg-gray-100 opacity-60'}`}>
+                          <td className="p-2 text-center"><input type="checkbox" checked={item.isSelected} onChange={() => toggleImportSelection(idx)} className="w-4 h-4 text-indigo-600 rounded cursor-pointer" /></td>
+                          <td className="p-2 font-bold text-gray-800">{item.word}</td>
+                          <td className="p-2 text-gray-600">
+                             <input type="text" value={item.meaning} onChange={(e) => updateImportedMeaning(idx, e.target.value)} className="w-full p-1 border rounded text-xs" />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                 </table>
+               </div>
+             </div>
+
+             {/* RIGHT: Game Mode Selection */}
+             <div className="flex flex-col gap-4 overflow-y-auto pr-1">
+               <div className="font-bold text-gray-700 flex items-center gap-2"><LayoutGrid className="w-5 h-5"/> Select Games to Play</div>
+               
+               {Object.keys(STAGES_INFO).map(key => (
+                 <div key={key} 
+                      onClick={() => toggleGameMode(key)}
+                      className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedGameModes[key] ? 'border-indigo-500 bg-indigo-50 shadow-md' : 'border-gray-200 bg-white hover:border-indigo-200'}`}>
+                   <div className="flex items-center gap-3 mb-2">
+                     <div className={`p-2 rounded-full ${selectedGameModes[key] ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                       {selectedGameModes[key] ? <CheckCircle className="w-5 h-5"/> : <XCircle className="w-5 h-5"/>}
+                     </div>
+                     <span className="font-bold text-gray-800">{STAGES_INFO[key].title.split('：')[1]}</span>
+                   </div>
+                   <p className="text-xs text-gray-500 ml-12">{STAGES_INFO[key].desc}</p>
+                 </div>
+               ))}
+
+               <div className="mt-auto pt-4">
+                 <Button onClick={confirmImportedList} className="w-full h-14 text-lg bg-green-600 hover:bg-green-700 shadow-xl">
+                   PLAY NOW <Star className="w-5 h-5 ml-1" />
+                 </Button>
+                 <p className="text-xs text-center text-gray-400 mt-2">Generates questions based on selection.</p>
+               </div>
+             </div>
+           </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (gameState === 'summary') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100 flex items-center justify-center p-4">
+        <Card className="max-w-2xl w-full text-center py-8 flex flex-col max-h-[90vh]">
+          <div className="flex-shrink-0">
+            <Award className="w-20 h-20 text-yellow-500 mx-auto mb-4 animate-bounce" />
+            <h2 className="text-3xl font-bold text-gray-800 mb-2">恭喜完成！</h2>
+            <div className="text-5xl font-black text-indigo-600 mb-2">{score}</div>
+          </div>
+
+          {wrongAnswers.length > 0 && (
+            <div className="flex-1 overflow-hidden flex flex-col mt-4 border-t pt-4">
+              <h3 className="text-lg font-bold text-red-600 mb-2 flex items-center justify-center gap-2">
+                <XCircle className="w-5 h-5"/> Incorrect Answers Review
+              </h3>
+              <div className="flex-1 overflow-y-auto bg-red-50 rounded-lg p-2 text-left">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-red-200 text-red-800">
+                    <tr>
+                      <th className="p-2">Question/Word</th>
+                      <th className="p-2">Your Answer</th>
+                      <th className="p-2">Correct Answer</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {wrongAnswers.map((item, idx) => (
+                      <tr key={idx} className="border-b border-red-100 last:border-0">
+                        <td className="p-2 font-bold text-gray-700">{item.question} <span className="text-xs text-gray-400 block">{item.type}</span></td>
+                        <td className="p-2 text-red-600 line-through">{item.userChoice}</td>
+                        <td className="p-2 text-green-600 font-bold">{item.correct}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-4 justify-center mt-6 flex-shrink-0">
+            <Button onClick={() => setGameState('confirm')} variant="outline">Play Again</Button>
+            <Button onClick={() => setGameState('welcome')} variant="secondary">Home</Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (currentStageQuestions.length === 0) return <div>Loading...</div>;
+
+  const currentQ = currentStageQuestions[currentQuestionIdx];
+  const currentStageInfo = STAGES_INFO[currentQ.stage];
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
+      {showTransition && <StageTransition stage={currentStageInfo} onComplete={() => setShowTransition(false)} />}
+      
+      <div className="max-w-4xl mx-auto">
+        {/* NAV BAR */}
+        <div className="flex justify-between items-center mb-4">
+           <Button variant="icon" onClick={() => setGameState('welcome')} className="bg-white hover:bg-gray-100 text-gray-600">
+             <Home className="w-5 h-5" />
+           </Button>
+           <Button variant="icon" onClick={() => setGameState('summary')} className="bg-white hover:bg-red-50 text-red-500 border border-red-100">
+             <LogOut className="w-5 h-5 mr-1" /> End Game
+           </Button>
+        </div>
+
+        <header className="flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">{currentStageInfo.icon}</div>
+            <div><h2 className="font-bold text-gray-800">{currentStageInfo.title}</h2><p className="text-xs text-gray-500 hidden md:block">{currentStageInfo.desc}</p></div>
+          </div>
+          <div className="flex items-center gap-2 bg-yellow-50 px-4 py-2 rounded-full border border-yellow-100"><Star className="w-5 h-5 text-yellow-500 fill-current" /><span className="font-bold text-yellow-700">{score}</span></div>
+        </header>
+        
+        <div className="w-full mb-6">
+          <div className="flex justify-between text-sm font-medium text-gray-600 mb-2"><span>Game Progress</span><span>{currentQuestionIdx + 1} / {currentStageQuestions.length}</span></div>
+          <div className="h-3 bg-gray-200 rounded-full overflow-hidden"><div className="h-full bg-indigo-500 transition-all duration-500 ease-out" style={{ width: `${((currentQuestionIdx + 1) / currentStageQuestions.length) * 100}%` }} /></div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          <Card className="flex flex-col justify-center min-h-[300px]">
+            <span className="inline-block px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-bold mb-4 w-fit">Question {currentQuestionIdx + 1}</span>
+            <h3 className="text-xl text-gray-800 mb-6 font-medium leading-relaxed">{currentQ.question}</h3>
+            <div className="bg-indigo-50 p-6 rounded-xl border-l-4 border-indigo-500 mb-4 text-center">
+              {currentQ.type === 'translation' && <p className="text-6xl font-bold text-gray-800">{currentQ.mainChar}</p>}
+              {currentQ.type === 'diff' && <p className="text-2xl font-serif text-gray-900">{currentQ.context}</p>}
+              {currentQ.type === 'recognition' && <p className="text-2xl font-serif text-gray-900">{currentQ.context}</p>}
+              {currentQ.type === 'reverse-def' && <p className="text-xl font-bold text-gray-800">{currentQ.mainChar}</p>}
+              {currentQ.type === 'relation' && (<div><p className="text-5xl font-bold text-gray-800 mb-2">{currentQ.mainChar}</p><p className="text-sm text-gray-500">{currentQ.mode}</p></div>)}
+              {currentQ.type === 'fill' && <p className="text-2xl font-serif text-gray-900 leading-loose text-left">{currentQ.sentence.replace(currentQ.mainChar, '____')}</p>}
+            </div>
+          </Card>
+          <div className="grid gap-3">
+            {currentQ.options.map((opt, idx) => {
+              let variant = "outline";
+              if (selectedOption === opt) variant = lastCorrect ? "correct" : "wrong";
+              return (
+                <Button key={idx} onClick={() => handleAnswer(opt)} variant={variant} disabled={selectedOption !== null} className="h-full text-lg justify-between">
+                  <span className="flex items-center gap-3"><span className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm font-bold">{String.fromCharCode(65 + idx)}</span><span className="font-bold text-2xl">{opt}</span></span>
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      {showFeedback && <FeedbackModal isCorrect={lastCorrect} explanationZh={currentQ.explanationZh} explanationEn={currentQ.explanationEn} onNext={handleNext} />}
+    </div>
+  );
+}
